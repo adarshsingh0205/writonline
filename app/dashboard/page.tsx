@@ -1,115 +1,69 @@
 import Link from 'next/link'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 
-const RECENT_DOCS = [
-  { type: 'JUDGEMENT', typeColor: 'bg-blue-50 text-blue-800', name: 'Ram Lal vs. State of U.P. — Civil Appeal', meta: 'Modified 2 hrs ago · Allahabad HC Format', status: 'Draft', statusColor: 'text-amber-700' },
-  { type: 'PETITION', typeColor: 'bg-green-50 text-green-800', name: 'Writ Petition — Habeas Corpus No. 1123/2026', meta: 'Modified yesterday · Supreme Court', status: 'Final', statusColor: 'text-green-700' },
-  { type: 'ORDER', typeColor: 'bg-orange-50 text-orange-800', name: 'Interim Order — Shyam vs. Union of India', meta: 'Modified 3 days ago · Delhi HC Format', status: 'Draft', statusColor: 'text-amber-700' },
-  { type: 'NOTICE', typeColor: 'bg-purple-50 text-purple-800', name: 'Legal Notice — Property Dispute, Lucknow', meta: 'Modified 4 days ago', status: 'Final', statusColor: 'text-green-700' },
-  { type: 'JUDGEMENT', typeColor: 'bg-blue-50 text-blue-800', name: 'Meena Devi vs. Rajesh Kumar — Matrimonial', meta: 'Modified last week · Family Court', status: 'Final', statusColor: 'text-green-700' },
-]
+function Navbar() {
+  return (
+    <nav style={{background:'#0B1F3A',padding:'0 2rem',height:'64px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:50,borderBottom:'1px solid rgba(201,168,76,0.2)'}}>
+      <Link href="/" style={{display:'flex',alignItems:'center',gap:'8px',textDecoration:'none'}}>
+        <div style={{width:'32px',height:'32px',background:'#C9A84C',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'#0B1F3A',fontWeight:'700',fontSize:'14px'}}>W</div>
+        <span style={{fontFamily:'Georgia,serif',fontSize:'20px',color:'#fff'}}>Writ<span style={{color:'#E8C97A'}}>Online</span></span>
+      </Link>
+      <div style={{display:'flex',gap:'2rem'}}>
+        {[['Home','/'],['Draft','/draft'],['SC Precedents','/precedents'],['Pricing','/pricing'],['Dashboard','/dashboard']].map(([l,h])=>(
+          <Link key={h} href={h} style={{color:'rgba(255,255,255,0.7)',textDecoration:'none',fontSize:'14px',fontWeight:'500'}}>{l}</Link>
+        ))}
+      </div>
+      <Link href="/draft" style={{background:'#C9A84C',color:'#0B1F3A',padding:'8px 20px',borderRadius:'4px',textDecoration:'none',fontSize:'14px',fontWeight:'700'}}>Start Drafting</Link>
+    </nav>
+  )
+}
 
-const METRICS = [
-  { num: '47', label: 'Total Drafts', change: '↑ 8 this month' },
-  { num: '12', label: 'Active Cases', change: '↑ 2 new' },
-  { num: '23,840+', label: 'SC Precedents', change: '↑ 2 indexed today' },
-  { num: '98%', label: 'Citation Accuracy', change: 'AI-verified' },
+const DOCS = [
+  {type:'JUDGEMENT',bg:'#E8F0FB',tc:'#1A4B8B',name:'Ram Lal vs. State of U.P. — Civil Appeal',meta:'Modified 2 hrs ago · Allahabad HC',status:'Draft',sc:'#8B6A1A'},
+  {type:'PETITION',bg:'#E8F5EE',tc:'#1A6B3C',name:'Writ Petition — Habeas Corpus No. 1123/2026',meta:'Modified yesterday · Supreme Court',status:'Final',sc:'#1A6B3C'},
+  {type:'ORDER',bg:'#FBF0E8',tc:'#8B3A1A',name:'Interim Order — Shyam vs. Union of India',meta:'Modified 3 days ago · Delhi HC',status:'Draft',sc:'#8B6A1A'},
+  {type:'NOTICE',bg:'#F5E8FB',tc:'#5A1A8B',name:'Legal Notice — Property Dispute, Lucknow',meta:'Modified 4 days ago',status:'Final',sc:'#1A6B3C'},
 ]
 
 export default function DashboardPage() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex flex-col w-56 bg-white border-r border-[#EDE6D3] py-5">
-          <div className="px-4 mb-4">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-[#7A8BA8] mb-2">Main</p>
-            {[['Dashboard', '/dashboard', true], ['New Draft', '/draft', false], ['My Documents', '/dashboard', false], ['SC Precedents', '/precedents', false]].map(([label, href, active]) => (
-              <Link key={label as string} href={href as string}
-                className={`flex items-center gap-2 px-3 py-2 rounded text-sm font-medium mb-1 transition-colors ${active ? 'bg-gold-pale text-navy border-l-2 border-gold' : 'text-[#3D5070] hover:bg-gold-pale hover:text-navy'}`}>
-                {label as string}
-              </Link>
-            ))}
-          </div>
-          <div className="px-4">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-[#7A8BA8] mb-2">Document Types</p>
-            {['Judgements', 'Petitions & Writs', 'Orders & Decrees', 'Notices', 'Affidavits'].map((label) => (
-              <Link key={label} href="/draft"
-                className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#3D5070] hover:bg-gold-pale hover:text-navy transition-colors mb-1 font-medium">
-                {label}
-              </Link>
-            ))}
-          </div>
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',fontFamily:'system-ui,sans-serif',background:'#FDFAF4',color:'#0B1F3A'}}>
+      <Navbar/>
+      <div style={{display:'flex',flex:1}}>
+        <aside style={{width:'220px',background:'#fff',borderRight:'1px solid #EDE6D3',padding:'1.25rem 0'}}>
+          {[['Dashboard','/dashboard'],['New Draft','/draft'],['SC Precedents','/precedents'],['My Documents','/dashboard'],['Pricing','/pricing']].map(([l,h])=>(
+            <Link key={l} href={h} style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 1.25rem',fontSize:'13px',color:'#3D5070',textDecoration:'none',fontWeight:'500'}}>{l}</Link>
+          ))}
         </aside>
-
-        {/* Main */}
-        <main className="flex-1 p-6 bg-cream">
-          <div className="mb-6">
-            <h1 className="font-serif text-2xl text-navy mb-1">Good Morning, Adv. Sharma ⚖️</h1>
-            <p className="text-[#7A8BA8] text-sm">Tuesday, 28 April 2026 · 3 documents pending review · 2 new SC judgements indexed</p>
-          </div>
-
-          {/* Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            {METRICS.map((m) => (
-              <div key={m.label} className="card p-4 border-t-4 border-t-gold">
-                <div className="font-serif text-3xl font-bold text-navy">{m.num}</div>
-                <div className="text-[10px] uppercase tracking-widest text-[#7A8BA8] mt-1">{m.label}</div>
-                <div className="text-xs text-green-700 font-medium mt-1">{m.change}</div>
+        <main style={{flex:1,padding:'1.75rem',background:'#FDFAF4'}}>
+          <h1 style={{fontFamily:'Georgia,serif',fontSize:'24px',marginBottom:'4px'}}>Good Morning, Adv. Sharma ⚖️</h1>
+          <p style={{color:'#7A8BA8',fontSize:'13px',marginBottom:'1.75rem'}}>Tuesday, 29 April 2026 · 3 documents pending review</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'1.75rem'}}>
+            {[['47','Total Drafts','↑ 8 this month'],['12','Active Cases','↑ 2 new'],['23,840+','SC Precedents','↑ 2 today'],['98%','Citation Accuracy','AI-verified']].map(([n,l,c])=>(
+              <div key={l} style={{background:'#fff',border:'1px solid #EDE6D3',borderTop:'3px solid #C9A84C',borderRadius:'8px',padding:'1rem 1.25rem'}}>
+                <div style={{fontFamily:'Georgia,serif',fontSize:'26px',fontWeight:'700',color:'#0B1F3A'}}>{n}</div>
+                <div style={{fontSize:'11px',color:'#7A8BA8',textTransform:'uppercase',letterSpacing:'0.06em',marginTop:'2px'}}>{l}</div>
+                <div style={{fontSize:'11px',color:'#1A6B3C',fontWeight:'500',marginTop:'4px'}}>{c}</div>
               </div>
             ))}
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Recent docs */}
-            <div className="card lg:col-span-2">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#EDE6D3]">
-                <h2 className="font-semibold text-navy text-sm">Recent Documents</h2>
-                <Link href="/draft" className="text-xs border border-[#EDE6D3] rounded px-3 py-1 text-[#3D5070] hover:border-gold hover:text-navy transition-colors font-medium">+ New Draft</Link>
-              </div>
-              <div className="divide-y divide-[#EDE6D3]">
-                {RECENT_DOCS.map((d, i) => (
-                  <Link key={i} href="/draft" className="flex items-center gap-3 px-5 py-3 hover:bg-gold-pale transition-colors">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${d.typeColor} shrink-0`}>{d.type}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-navy truncate">{d.name}</div>
-                      <div className="text-[11px] text-[#7A8BA8]">{d.meta}</div>
-                    </div>
-                    <span className={`text-xs font-semibold ${d.statusColor} shrink-0`}>{d.status}</span>
-                  </Link>
-                ))}
-              </div>
+          <div style={{background:'#fff',border:'1px solid #EDE6D3',borderRadius:'8px'}}>
+            <div style={{padding:'1rem 1.25rem',borderBottom:'1px solid #EDE6D3',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontWeight:'600',color:'#0B1F3A',fontSize:'14px'}}>Recent Documents</span>
+              <Link href="/draft" style={{fontSize:'12px',border:'1px solid #EDE6D3',borderRadius:'4px',padding:'5px 12px',color:'#3D5070',textDecoration:'none'}}>+ New Draft</Link>
             </div>
-
-            {/* Quick actions + Alerts */}
-            <div className="flex flex-col gap-4">
-              <div className="card">
-                <div className="px-4 py-3 border-b border-[#EDE6D3]"><h2 className="font-semibold text-navy text-sm">Quick Actions</h2></div>
-                <div className="p-4 space-y-2">
-                  {[['Draft New Judgement', '/draft'], ['Search SC Precedents', '/precedents'], ['AI Legal Research', '/draft']].map(([label, href]) => (
-                    <Link key={label as string} href={href as string}
-                      className="flex items-center gap-2 w-full text-sm font-medium text-navy border border-[#EDE6D3] rounded px-3 py-2.5 hover:border-gold hover:bg-gold-pale transition-all">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gold" />
-                      {label as string}
-                    </Link>
-                  ))}
+            {DOCS.map((d,i)=>(
+              <Link key={i} href="/draft" style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 1.25rem',borderBottom:'1px solid #EDE6D3',textDecoration:'none'}}>
+                <span style={{fontSize:'10px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',background:d.bg,color:d.tc,whiteSpace:'nowrap'}}>{d.type}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'13px',fontWeight:'500',color:'#0B1F3A',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name}</div>
+                  <div style={{fontSize:'11px',color:'#7A8BA8'}}>{d.meta}</div>
                 </div>
-              </div>
-              <div className="card">
-                <div className="px-4 py-3 border-b border-[#EDE6D3]"><h2 className="font-semibold text-navy text-sm">Recent SC Updates</h2></div>
-                <div className="p-4 space-y-2 text-xs">
-                  <div className="bg-green-50 text-green-800 rounded p-2.5 leading-relaxed border border-green-200">✓ <strong>New:</strong> SC on PMLA bail conditions — Vijay Madanlal Choudhary (2026)</div>
-                  <div className="bg-blue-50 text-blue-800 rounded p-2.5 leading-relaxed border border-blue-200">ℹ <strong>Updated:</strong> Article 370 — precedent scope clarified in follow-up orders</div>
-                  <div className="bg-blue-50 text-blue-800 rounded p-2.5 leading-relaxed border border-blue-200">ℹ <strong>New:</strong> SC on Arbitration Act S.34 — 5-judge bench ruling indexed</div>
-                </div>
-              </div>
-            </div>
+                <span style={{fontSize:'12px',fontWeight:'600',color:d.sc}}>{d.status}</span>
+              </Link>
+            ))}
           </div>
         </main>
       </div>
-      <Footer />
     </div>
   )
 }
