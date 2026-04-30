@@ -1,0 +1,651 @@
+// WritOnline — Complete MySQL Database Schema
+// ORM: Prisma
+// Host: PlanetScale (free MySQL) or Railway (free MySQL)
+// Connect: DATABASE_URL in .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma" // Required for PlanetScale (no foreign key constraints)
+}
+
+// ─────────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // hashed with bcrypt
+
+  // Profile
+  role          UserRole  @default(ADVOCATE)
+  barCouncilNo  String?
+  phone         String?
+  designation   String?   // e.g. "Senior Advocate", "District Judge"
+  courtName     String?   // primary court of practice
+  state         String?
+  city          String?
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+
+  // Subscription
+  plan          Plan      @default(FREE)
+  planExpiresAt DateTime?
+  trialEndsAt   DateTime?
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  documents     Document[]
+  drafts        Draft[]
+  bookmarks     Bookmark[]
+  searchHistory SearchHistory[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  chamber       ChamberMember[]
+
+  @@index([email])
+  @@index([role])
+  @@index([plan])
+  @@map("users")
+}
+
+enum UserRole {
+  JUDGE
+  ADVOCATE
+  GOVERNMENT_COUNSEL
+  LAW_STUDENT
+  COURT_STAFF
+  ADMIN
+}
+
+enum Plan {
+  FREE
+  ADVOCATE
+  JUDICIAL
+  ENTERPRISE
+}
+
+// NextAuth required tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─────────────────────────────────────────────
+// CHAMBERS / LAW FIRMS
+// ─────────────────────────────────────────────
+
+model Chamber {
+  id          String   @id @default(cuid())
+  name        String
+  type        ChamberType @default(LAW_FIRM)
+  address     String?
+  city        String?
+  state       String?
+  phone       String?
+  email       String?
+  website     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     ChamberMember[]
+  documents   Document[]
+
+  @@map("chambers")
+}
+
+enum ChamberType {
+  LAW_FIRM
+  COURT_CHAMBER
+  GOVERNMENT_DEPT
+  LEGAL_AID
+}
+
+model ChamberMember {
+  id         String      @id @default(cuid())
+  userId     String
+  chamberId  String
+  role       String      @default("MEMBER") // OWNER, ADMIN, MEMBER
+  joinedAt   DateTime    @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chamber    Chamber     @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chamberId])
+  @@index([userId])
+  @@index([chamberId])
+  @@map("chamber_members")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS (Final / Filed)
+// ─────────────────────────────────────────────
+
+model Document {
+  id              String         @id @default(cuid())
+  userId          String
+  chamberId       String?
+
+  // Document Identity
+  title           String
+  documentType    String         // e.g. "Writ Petition (Civil)"
+  category        String         // e.g. "Writ Jurisdiction"
+  courtLevel      CourtLevel
+  courtName       String         // e.g. "Allahabad High Court"
+  bench           String?        // e.g. "Lucknow Bench"
+
+  // Case Details
+  caseNumber      String?
+  caseYear        String?
+  filingDate      DateTime?
+  hearingDate     DateTime?
+  nextDate        DateTime?
+
+  // Parties
+  petitioners     Json           // Array of {name, type}
+  respondents     Json           // Array of {name, type}
+
+  // Content
+  content         Json           // Full document sections as JSON
+  language        Language       @default(ENGLISH)
+  urgency         UrgencyLevel   @default(NORMAL)
+  statutes        String?        @db.Text // comma-separated
+  facts           String?        @db.Text
+
+  // Counsel
+  advocateName    String?
+  barCouncilNo    String?
+  advocatePhone   String?
+  advocateEmail   String?
+  seniorAdvocate  String?
+
+  // Status & Version
+  status          DocumentStatus @default(DRAFT)
+  version         Int            @default(1)
+  isArchived      Boolean        @default(false)
+  isTemplate      Boolean        @default(false)
+  templateName    String?
+
+  // AI Metadata
+  aiGenerated     Boolean        @default(false)
+  aiModel         String?
+  citationsUsed   Json?          // Array of citation IDs used
+  aiSuggestions   Json?          // AI suggestions applied
+
+  // File Storage
+  pdfUrl          String?        // Cloudflare R2 / S3 URL
+  docxUrl         String?
+  fileSize        Int?           // in bytes
+
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  finalizedAt     DateTime?
+
+  // Relations
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chamber         Chamber?       @relation(fields: [chamberId], references: [id])
+  attachments     Attachment[]
+  versions        DocumentVersion[]
+  annotations     Annotation[]
+  bookmarks       Bookmark[]
+
+  @@index([userId])
+  @@index([chamberId])
+  @@index([courtLevel])
+  @@index([documentType])
+  @@index([status])
+  @@index([createdAt])
+  @@map("documents")
+}
+
+enum CourtLevel {
+  SUPREME_COURT
+  HIGH_COURT
+  DISTRICT_COURT
+  TRIBUNAL
+  SPECIAL_COURT
+}
+
+enum DocumentStatus {
+  DRAFT
+  REVIEW
+  FINAL
+  FILED
+  ARCHIVED
+}
+
+enum Language {
+  ENGLISH
+  HINDI
+  BILINGUAL
+}
+
+enum UrgencyLevel {
+  NORMAL
+  URGENT
+  VERY_URGENT
+  EXPARTE
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT VERSIONS (Version Control)
+// ─────────────────────────────────────────────
+
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  documentId  String
+  version     Int
+  content     Json     // Full snapshot of document at this version
+  changedBy   String   // userId
+  changeNote  String?
+  createdAt   DateTime @default(now())
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_versions")
+}
+
+// ─────────────────────────────────────────────
+// DRAFTS (Auto-save / Work in Progress)
+// ─────────────────────────────────────────────
+
+model Draft {
+  id           String     @id @default(cuid())
+  userId       String
+  title        String     @default("Untitled Draft")
+  documentType String?
+  category     String?
+  courtLevel   CourtLevel?
+  courtName    String?
+  content      Json?      // Partial document content
+  formData     Json?      // Wizard form state
+  step         Int        @default(0) // Which step of wizard
+  lastSavedAt  DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  expiresAt    DateTime?  // Auto-delete old drafts
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("drafts")
+}
+
+// ─────────────────────────────────────────────
+// ATTACHMENTS
+// ─────────────────────────────────────────────
+
+model Attachment {
+  id           String     @id @default(cuid())
+  documentId   String
+  fileName     String
+  fileLabel    String?    // e.g. "Annexure A", "Vakalatnama"
+  fileType     String     // MIME type
+  fileSize     Int        // bytes
+  fileUrl      String     // Storage URL
+  uploadedAt   DateTime   @default(now())
+  order        Int        @default(0)
+
+  document     Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("attachments")
+}
+
+// ─────────────────────────────────────────────
+// SC PRECEDENTS DATABASE
+// ─────────────────────────────────────────────
+
+model Precedent {
+  id              String     @id @default(cuid())
+  title           String
+  citation        String     @unique
+  year            Int
+  bench           String
+  benchStrength   Int        @default(2)  // number of judges
+  category        String     // Constitutional Law, Criminal Law etc.
+  tags            Json       // Array of tags
+  principle       String     @db.Text
+  holding         String     @db.Text
+  applicability   String     @db.Text
+  area            String
+  isApproved      Boolean    @default(true)
+  isOverruled     Boolean    @default(false)
+  overruledBy     String?    // Citation that overruled this
+  courtName       String     @default("Supreme Court of India")
+  judgeName       Json?      // Array of judge names
+  fullTextUrl     String?    // Link to SCC/Manupatra
+  addedBy         String?    // Admin userId
+  viewCount       Int        @default(0)
+  usageCount      Int        @default(0) // How many docs cited this
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  bookmarks       Bookmark[]
+  searchHistory   SearchHistory[]
+
+  @@index([year])
+  @@index([category])
+  @@index([area])
+  @@index([isOverruled])
+  @@fulltext([title, principle, holding])
+  @@map("precedents")
+}
+
+// ─────────────────────────────────────────────
+// BOOKMARKS
+// ─────────────────────────────────────────────
+
+model Bookmark {
+  id           String    @id @default(cuid())
+  userId       String
+  documentId   String?
+  precedentId  String?
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document     Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  precedent    Precedent? @relation(fields: [precedentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@unique([userId, precedentId])
+  @@index([userId])
+  @@map("bookmarks")
+}
+
+// ─────────────────────────────────────────────
+// ANNOTATIONS (Inline comments on documents)
+// ─────────────────────────────────────────────
+
+model Annotation {
+  id          String   @id @default(cuid())
+  documentId  String
+  userId      String
+  sectionKey  String   // Which section of the document
+  text        String   @db.Text
+  type        AnnotationType @default(COMMENT)
+  isResolved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([userId])
+  @@map("annotations")
+}
+
+enum AnnotationType {
+  COMMENT
+  SUGGESTION
+  AI_NOTE
+  WARNING
+}
+
+// ─────────────────────────────────────────────
+// SEARCH HISTORY
+// ─────────────────────────────────────────────
+
+model SearchHistory {
+  id          String    @id @default(cuid())
+  userId      String
+  query       String
+  type        String    // "precedent", "document", "clause"
+  resultsCount Int      @default(0)
+  precedentId String?   // If clicked on a specific precedent
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  precedent   Precedent? @relation(fields: [precedentId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("search_history")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id         String             @id @default(cuid())
+  userId     String
+  title      String
+  message    String             @db.Text
+  type       NotificationType   @default(INFO)
+  isRead     Boolean            @default(false)
+  link       String?
+  createdAt  DateTime           @default(now())
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  NEW_PRECEDENT
+  DOCUMENT_SHARED
+  SUBSCRIPTION
+  SYSTEM
+}
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTIONS & PAYMENTS
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  plan              Plan
+  status            SubscriptionStatus @default(ACTIVE)
+  amount            Int                // in paise (₹999 = 99900)
+  currency          String             @default("INR")
+  billingCycle      BillingCycle       @default(MONTHLY)
+  startDate         DateTime
+  endDate           DateTime
+  cancelledAt       DateTime?
+  razorpaySubId     String?            // Razorpay subscription ID
+  razorpayPlanId    String?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  payments          Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+  TRIAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUALLY
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  subscriptionId   String
+  amount           Int           // in paise
+  currency         String        @default("INR")
+  status           PaymentStatus @default(PENDING)
+  razorpayOrderId  String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  invoiceUrl       String?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+
+  subscription     Subscription  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOGS (Track all actions)
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String   // e.g. "document.create", "document.export", "login"
+  entityType String?  // "document", "user", "precedent"
+  entityId   String?
+  metadata   Json?    // Additional context
+  ipAddress  String?
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// TEMPLATES (Reusable document templates)
+// ─────────────────────────────────────────────
+
+model Template {
+  id           String     @id @default(cuid())
+  name         String
+  description  String?
+  documentType String
+  category     String
+  courtLevel   CourtLevel
+  courtName    String?
+  content      Json       // Template sections with placeholders
+  tags         Json?      // Array of tags
+  isPublic     Boolean    @default(false)
+  isOfficial   Boolean    @default(false) // WritOnline official template
+  usageCount   Int        @default(0)
+  createdBy    String?    // userId
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([documentType])
+  @@index([courtLevel])
+  @@index([isPublic])
+  @@map("templates")
+}
+
+// ─────────────────────────────────────────────
+// STANDARD CLAUSES LIBRARY
+// ─────────────────────────────────────────────
+
+model Clause {
+  id           String   @id @default(cuid())
+  title        String
+  category     String   // "Injunction", "Bail", "Natural Justice" etc.
+  courtLevel   String?  // Which courts this applies to
+  content      String   @db.Text
+  tags         Json?
+  isPublic     Boolean  @default(true)
+  usageCount   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@fulltext([title, content])
+  @@map("clauses")
+}
+
+// ─────────────────────────────────────────────
+// CAUSE LIST (For Judges / Court Staff)
+// ─────────────────────────────────────────────
+
+model CauseList {
+  id          String   @id @default(cuid())
+  courtName   String
+  bench       String?
+  date        DateTime
+  items       Json     // Array of {serialNo, caseNo, parties, advocate, remarks}
+  createdBy   String   // userId
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courtName])
+  @@index([date])
+  @@map("cause_lists")
+}
